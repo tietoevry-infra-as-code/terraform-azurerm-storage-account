@@ -34,7 +34,7 @@ Following example to create a storage account with a few containers.
 
 ```
 module "storageacc" {
-  source                 = "github.com/tietoevry-cloud-infra/terraform-azurerm-storage?ref=v1.1.0"
+  source                  = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v1.0.0"
   create_resource_group   = true
   resource_group_name     = "rg-demo-westeurope-01"
   location                = "westeurope"
@@ -66,7 +66,7 @@ Following example to create a storage account with few SMB files shares.
 
 ```
 module "storageacc" {
-  source                 = "github.com/tietoevry-cloud-infra/terraform-azurerm-storage?ref=v1.1.0"
+  source                  = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v1.0.0"
   create_resource_group   = true
   resource_group_name     = "rg-demo-westeurope-01"
   location                = "westeurope"
@@ -96,7 +96,7 @@ Following example to create a storage account with containers and and SMB file s
 
 ```
 module "storageacc" {
-  source                 = "github.com/tietoevry-cloud-infra/terraform-azurerm-storage?ref=v1.1.0"
+  source                  = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v1.0.0"
   create_resource_group   = true
   resource_group_name     = "rg-demo-westeurope-01"
   location                = "westeurope"
@@ -146,9 +146,12 @@ Run `terraform destroy` when you don't need these resources.
 
 Name | Description
 ---- | -----------
-storage_account_id | The ID of the storage account
-sorage_account_name| The name of the storage account
-storage_primary_connection_string|The primary connection string for the storage account
-storage_primary_access_key|The primary access key for the storage account
-containers | The list of containers
-file_shares | The list of SMB file shares
+`resource_group_name` | The name of the resource group in which resources are created
+`resource_group_id` | The id of the resource group in which resources are created
+`resource_group_location`| The location of the resource group in which resources are created
+`storage_account_id` | The ID of the storage account
+`sorage_account_name`| The name of the storage account
+`storage_primary_connection_string`|The primary connection string for the storage account
+`storage_primary_access_key`|The primary access key for the storage account
+`containers` | The list of containers
+`file_shares` | The list of SMB file shares

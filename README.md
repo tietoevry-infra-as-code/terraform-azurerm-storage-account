@@ -26,7 +26,7 @@ Following example to create a storage account with a few containers.
 
 ```
 module "storageacc" {
-  source                  = "github.com/tietoevry-cloud-infra/terraform-azurerm-storage?ref=v1.1.0"
+  source                  = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v1.0.0"
   create_resource_group   = false
   resource_group_name     = "rg-demo-westeurope-01"
   location                = "westeurope"
@@ -133,6 +133,10 @@ Name | Description
 `storage_primary_access_key`|The primary access key for the storage account
 `containers` | The list of containers
 `file_shares` | The list of SMB file shares
+
+## Resource Graph
+
+![Resource Graph](graph.png)
 
 ## Authors
 
