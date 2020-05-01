@@ -20,8 +20,8 @@ All network resources which support tagging can be tagged by specifying key-valu
 
 ```
 module "storage" {
-  source                  = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v1.0.0"
-  create_resource_group   = false
+  source                = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v1.0.0"
+  create_resource_group = false
 
   # ... omitted
 
