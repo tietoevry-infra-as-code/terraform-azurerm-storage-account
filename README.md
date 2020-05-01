@@ -111,7 +111,7 @@ module "storage" {
     Owner       = "test-user"
   }
 }
-
+```
 ## Inputs
 
 Name | Description | Type | Default
