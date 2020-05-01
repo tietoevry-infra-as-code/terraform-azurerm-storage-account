@@ -31,6 +31,7 @@ module "storage" {
     Owner       = "test-user"
   }
 }
+```
 
 ## Module Usage
 
