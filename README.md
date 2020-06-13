@@ -1,51 +1,74 @@
-# Azure Storage Account
+# Azure Storage Account Terraform Module
 
-[![Terraform](https://img.shields.io/badge/Terraform%20-0.12-brightgreen.svg?style=flat)](https://github.com/hashicorp/terraform/releases) [![License](https://img.shields.io/badge/License%20-MIT-brightgreen.svg?style=flat)](https://github.com/kumarvna/cloudascode/blob/master/LICENSE)
-
-Terraform Module to create an Azure storage account with a set of containers (and access level), set of file shares (and quota), static website with CDN service. Few of these resources added/excluded as per your requirement.
-
-You can configure your storage account to accept requests from secure connections only by setting the `enable_https_traffic_only = true` for the storage account. By default, this property is enabled when you create a storage account using this module.
+Terraform Module to create an Azure storage account with a set of containers (and access level), set of file shares (and quota), tables, queues, Network policies and Blob lifecycle management.
 
 To defines the kind of account, set the argument to `account_kind = "StorageV2"`. Account kind defaults to `StorageV2`. If you want to change this value to other storage accounts kind, then this module automatically computes the appropriate values for `account_tier`, `account_replication_type`. The valid options are `BlobStorage`, `BlockBlobStorage`, `FileStorage`, `Storage` and `StorageV2`.
 
-Note: *static_website can only be set when the account_kind is set to StorageV2.*
+>Note: *static_website can only be set when the account_kind is set to `StorageV2`.*
 
-For more details, check [Microsoft Azure Documentation](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-overview)
-
-## These types of resources are supported
+These types of resources are supported:
 
 * [Storage Account](https://www.terraform.io/docs/providers/azurerm/r/storage_account.html)
-
+* [Storage Advanced Threat Protection](https://www.terraform.io/docs/providers/azurerm/r/advanced_threat_protection.html)
 * [Containers](https://www.terraform.io/docs/providers/azurerm/r/storage_container.html)
-
 * [SMB File Shares](https://www.terraform.io/docs/providers/azurerm/r/storage_share.html)
+* [Storage Table](https://www.terraform.io/docs/providers/azurerm/r/storage_table.html)
+* [Storage Queue](https://www.terraform.io/docs/providers/azurerm/r/storage_queue.html)
+* [Network Policies](https://www.terraform.io/docs/providers/azurerm/r/storage_account.html#network_rules)
+* [Azure Blob storage lifecycle](https://www.terraform.io/docs/providers/azurerm/r/storage_management_policy.html)
 
 ## Module Usage
 
 Following example to create a storage account with a few containers.
 
-```
+```hcl
 module "storage" {
-  source                  = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v1.0.0"
-  create_resource_group   = false
-  resource_group_name     = "rg-demo-westeurope-01"
-  location                = "westeurope"
-  storage_account_name    = "storageaccwesteupore01"
+  source = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v2.0.0"
 
-# Container lists wiht access_type to create
+  # By default, this module will create a resource group, proivde the name here
+  # to use an existing resource group, specify the existing resource group name,
+  # and set the argument to `create_resource_group = false`. Location will be same as existing RG.
+  # RG name must follow Azure naming convention. ex.: rg-<App or project name>-<Subscription type>-<Region>-<###>
+  # Resource group is named like this: rg-tieto-internal-prod-westeurope-001
+  create_resource_group = false
+  resource_group_name   = "rg-tieto-internal-shared-westeurope-001"
+  location              = "westeurope"
+
+  # To enable advanced threat protection set argument to `true`
+  enable_advanced_threat_protection = true
+
+  # (Required) Project_Name, Subscription_type and environment are must to create resource names.
+  project_name      = "tieto-internal"
+  subscription_type = "shared"
+  environment       = "dev"
+
+  # Container lists with access_type to create
   containers_list = [
-    { name        = "mystore250"
-      access_type = "private"},
-    { name        = "blobstore251"
-      access_type = "blob"},
-    { name      = "containter252"
-      access_type = "container"}
+    { name = "mystore250", access_type = "private" },
+    { name = "blobstore251", access_type = "blob" },
+    { name = "containter252", access_type = "container" }
   ]
 
+  # SMB file share with quota (GB) to create
+  file_shares = [
+    { name = "smbfileshare1", quota = 50 },
+    { name = "smbfileshare2", quota = 50 }
+  ]
+
+  # Storage tables
+  tables = ["table1", "table2", "table3"]
+
+  # Storage queues
+  queues = ["queue1", "queue2"]
+
+  # Adding TAG's to your Azure resources (Required)
+  # ProjectName and Env are already declared above, to use them here, create a varible.
   tags = {
-    Terraform   = "true"
-    Environment = "dev"
-    Owner       = "test-user"
+    ProjectName  = "tieto-internal"
+    Env          = "dev"
+    Owner        = "user@example.com"
+    BusinessUnit = "CORP"
+    ServiceClass = "Gold"
   }
 }
 ```
@@ -54,7 +77,7 @@ module "storage" {
 
 By default, this module will not create a resource group and the name of an existing resource group to be given in an argument `resource_group_name`. If you want to create a new resource group, set the argument `create_resource_group = true`.
 
-*If you are using an existing resource group, then this module uses the same resource group location to create all resources in this module.*
+>*If you are using an existing resource group, then this module uses the same resource group location to create all resources in this module.*
 
 ## BlockBlobStorage accounts
 
@@ -84,47 +107,102 @@ Azure Files offers fully managed file shares in the cloud that are accessible vi
 
 This module creates the SMB file shares based on your input within an Azure Storage Account.  Configure the `quota` for this file share as per your preference. The maximum size of the share, in gigabytes. For Standard storage accounts, this must be greater than `0` and less than `5120` GB (5 TB). For Premium FileStorage storage accounts, this must be greater than `100` GB and less than `102400` GB (100 TB).
 
-## `sensitive` — Suppressing Values in CLI Output
+## Soft delete for Blob storage
 
-An output can be marked as containing sensitive material using the optional `sensitive = true` argument in the output declration.
+Soft delete protects blob data from being accidentally or erroneously modified or deleted. When soft delete is enabled for a storage account, blobs, blob versions (preview), and snapshots in that storage account may be recovered after they are deleted, within a retention period that you specify.
 
-Setting an output value in the root module as sensitive prevents Terraform from showing its value in the list of outputs at the end of `terraform apply`. It might still be shown in the CLI output for other reasons, like if the value is referenced in an expression for a resource argument.
+This module allows you to specify the number of days that the blob should be retained period using `soft_delete_retention` argument between 1 and 365 days.
 
-Sensitive output values are still recorded in the [state](https://www.terraform.io/docs/state/index.html), and so will be visible to anyone who is able to access the state data. Storing state remotely can provide better security. For more information, see [Sensitive Data in State.](https://www.terraform.io/docs/state/sensitive-data.html)
+## Configure Azure Storage firewalls and virtual networks
 
-## Tagging
+The Azure storage firewall provides access control access for the public endpoints of the storage account.  Use network policies to block all access through the public endpoint when using private endpoints. The storage firewall configuration also enables select trusted Azure platform services to access the storage account securely.
 
-Use tags to organize your Azure resources and management hierarchy. You can apply tags to your Azure resources, resource groups, and subscriptions to logically organize them into a taxonomy. Each tag consists of a name and a value pair. For example, you can apply the name "Environment" and the value "Production" to all the resources in production. You can manage these values variables directly or mapping as a variable using `variables.tf`.
+The default action set to `Allow` when no network rules matched. A `subnet_ids` or `ip_rules` can be added to `network_rules` block to allow a request that is not Azure Services.
 
-All Azure resources which support tagging can be tagged by specifying key-values in argument `tags`. Tag Name is added automatically on all resources. For example, you can specify `tags` like this:
-
-```
+```hcl
 module "storage" {
-  source                  = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v1.0.0"
-  create_resource_group   = false
+  source = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v2.0.0"
 
-  # ... omitted
+  # .... omitted
 
-  tags = {
-    Terraform   = "true"
-    Environment = "dev"
-    Owner       = "test-user"
+  # If specifying network_rules, one of either `ip_rules` or `subnet_ids` must be specified
+  network_rules = {
+    bypass     = ["AzureServices"]
+    ip_rules   = ["123.201.18.148"] # One or more IP Addresses, or CIDR Blocks to access this Key Vault.
+    subnet_ids = [] # One or more Subnet ID's to access this Key Vault.
   }
-}
-```
+
+  # .... omitted
+  }
+  ```
+
+## Manage the Azure Blob storage lifecycle
+
+Azure Blob storage lifecycle management offers a rich, rule-based policy for General Purpose v2 (GPv2) accounts, Blob storage accounts, and Premium Block Blob storage accounts. Use the policy to transition your data to the appropriate access tiers or expire at the end of the data's lifecycle.
+
+The lifecycle management policy lets you:
+
+* Transition blobs to a cooler storage tier (hot to cool, hot to archive, or cool to archive) to optimize for performance and cost
+* Delete blobs at the end of their lifecycles
+* Define rules to be run once per day at the storage account level
+* Apply rules to containers or a subset of blobs*
+
+This module supports the implementation of storage lifecycle management. If specifying network_rules, one of either `ip_rules` or `subnet_ids` must be specified and default_action must be set to `Deny`.
+
+```hcl
+module "storage" {
+  source = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v2.0.0"
+
+  # .... omitted
+
+  # Lifecycle management for storage account.
+  # Must specify the value to each argument and default is `0`
+  lifecycles = [
+    {
+      prefix_match               = ["mystore250/folder_path"]
+      tier_to_cool_after_days    = 0
+      tier_to_archive_after_days = 50
+      delete_after_days          = 100
+      snapshot_delete_after_days = 30
+    },
+    {
+      prefix_match               = ["blobstore251/another_path"]
+      tier_to_cool_after_days    = 0
+      tier_to_archive_after_days = 30
+      delete_after_days          = 75
+      snapshot_delete_after_days = 30
+    }
+  ]
+
+  # .... omitted
+  }
+  ```
+
 ## Inputs
 
 Name | Description | Type | Default
 ---- | ----------- | ---- | -------
-`create_resource_group` | Whether to create resource group and use it for all networking resources | string | `"false"`
-`resource_group_name`|The name of an existing resource group.|string|`"rg-demo-westeurope-01"`
-`location`|The location for all resources while creating a new resource group.|string|`"westeurope"`
+`create_resource_group`|Whether to create resource group and use it for all networking resources|string| `false`
+`resource_group_name`|The name of the resource group in which resources are created|string|`""`
+`location`|The location of the resource group in which resources are created|string| `""`
+`project_name`|The name of the project|string|`""`
+`subscription_type`|Summary description of the purpose of the subscription that contains the resource. Often broken down by deployment environment type or specific workloads. For example, Training, FINANCE, MARKETING, CORP, SHARED|string |`""`
+`environment`|The stage of the development lifecycle for the workload that the resource supports|list |`{}`
 `account_kind`|General-purpose v2 accounts: Basic storage account type for blobs, files, queues, and tables.|string|`"StorageV2"`
-`containers_list` | List of container|list|`[]`
-`file_shares` | List of SMB file shares|list|`[]`
+`skuname`|The SKUs supported by Microsoft Azure Storage. Valid options are Premium_LRS, Premium_ZRS, Standard_GRS, Standard_GZRS, Standard_LRS, Standard_RAGRS, Standard_RAGZRS, Standard_ZRS|string|`Standard_RAGRS`
+`access_tier`|Defines the access tier for BlobStorage and StorageV2 accounts. Valid options are Hot and Cool.|string|`"Hot"`
+`assign_identity`|Set to `true` to enable system-assigned managed identity, or `false` to disable it.|string|`true`
+`soft_delete_retention`|Number of retention days for soft delete. If set to null it will disable soft delete all together.|number|`30`
+`enable_advanced_threat_protection`|Controls Advance threat protection plan for Storage account!string|`false`
+`network_rules`|Configure Azure storage firewalls and virtual networks|list|`null`
+`containers_list`| List of container|list|`[]`
+`file_shares`|List of SMB file shares|list|`[]`
+`queues`|List of storages queues|list|`[]`
+`tables`|List of storage tables|list|`[]`
+`lifecycles`|Configure Azure Storage firewalls and virtual networks|list|`{}`
 `Tags`|A map of tags to add to all resources|map|`{}`
 
-### `Container` object (must have keys)
+### `Container` objects (must have keys)
 
 Name | Description | Type | Default
 ---- | ----------- | ---- | -------
@@ -138,19 +216,43 @@ Name | Description | Type | Default
 `name` | Name of the SMB file share | string | `""`
 `quota` | The required size in GB. Defaults to `5120`|string|`""`
 
+### `network_rules` objects (must have keys)
+
+Name | Description | Type | Default
+---- | ----------- | ---- | -------
+`bypass`|Specifies whether traffic is bypassed for Logging/Metrics/AzureServices. Valid options are any combination of `Logging`, `Metrics`, `AzureServices`, or `None`.|string |`"AzureServices"`
+`ip_rules`|List of public IP or IP ranges in CIDR Format. Only IPV4 addresses are allowed. Private IP address ranges are not allowed.|list(string)|`[]`
+subnet_ids|A list of resource ids for subnets.|list(string)|`[]`
+
+### `lifecycles` objects (must have keys)
+
+Name | Description | Type | Default
+---- | ----------- | ---- | -------
+`prefix_match`|An array of strings for prefixes to be matched|set(string)|`[]`
+`tier_to_cool_after_days`|The age in days after last modification to tier blobs to cool storage. Supports blob currently at `Hot` tier. Must be at least `0`.|number|`0`
+`tier_to_archive_after_days`|The age in days after last modification to tier blobs to archive storage. Supports blob currently at `Hot` or `Cool` tier. Must be at least `0`.|number|`0`
+`delete_after_days`|The age in days after last modification to delete the blob. Must be at least 0.|number|`0`
+`snapshot_delete_after_days`|The age in days after create to delete the snapshot. Must be at least 0.|number|`0`
+
 ## Outputs
 
 Name | Description
 ---- | -----------
-`resource_group_name` | The name of the resource group in which resources are created
-`resource_group_id` | The id of the resource group in which resources are created
-`resource_group_location`| The location of the resource group in which resources are created
-`storage_account_id` | The ID of the storage account
-`sorage_account_name`| The name of the storage account
+`resource_group_name`|The name of the resource group in which resources are created
+`resource_group_id`|The id of the resource group in which resources are created
+`resource_group_location`|The location of the resource group in which resources are created
+`storage_account_id`|The ID of the storage account
+`sorage_account_name`|The name of the storage account
+`storage_account_primary_location`|The primary location of the storage account
+`storage_account_primary_web_endpoint`|The endpoint URL for web storage in the primary location
+`storage_account_primary_web_host`|The hostname with port if applicable for web storage in the primary location
 `storage_primary_connection_string`|The primary connection string for the storage account
 `storage_primary_access_key`|The primary access key for the storage account
-`containers` | The list of containers
-`file_shares` | The list of SMB file shares
+`storage_secondary_access_key`|The secondary access key for the storage account
+`containers`|The list of containers
+`file_shares`|The list of SMB file shares
+`tables`|The list of storage tables
+`queues`|The list of storage queues
 
 ## Resource Graph
 
@@ -163,5 +265,4 @@ Module is maintained by [Kumaraswamy Vithanala](mailto:kumaraswamy.vithanala@tie
 ## Other resources
 
 * [Azure Storage documentation](https://docs.microsoft.com/en-us/azure/storage/)
-
 * [Terraform AzureRM Provider Documentation](https://www.terraform.io/docs/providers/azurerm/index.html)
