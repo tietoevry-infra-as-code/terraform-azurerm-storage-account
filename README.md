@@ -19,28 +19,19 @@ These types of resources are supported:
 
 ## Module Usage
 
-Following example to create a storage account with a few containers.
-
 ```hcl
 module "storage" {
   source = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v2.0.0"
 
-  # By default, this module will create a resource group, proivde the name here
-  # to use an existing resource group, specify the existing resource group name,
+  # By default, this module will not create a resource group
+  # proivde a name to use an existing resource group, specify the existing resource group name,
   # and set the argument to `create_resource_group = false`. Location will be same as existing RG.
-  # RG name must follow Azure naming convention. ex.: rg-<App or project name>-<Subscription type>-<Region>-<###>
-  # Resource group is named like this: rg-tieto-internal-prod-westeurope-001
-  create_resource_group = false
-  resource_group_name   = "rg-tieto-internal-shared-westeurope-001"
-  location              = "westeurope"
+  resource_group_name  = "rg-demo-internal-shared-westeurope-002"
+  location             = "westeurope"
+  storage_account_name = "mydefaultstorage"
 
   # To enable advanced threat protection set argument to `true`
   enable_advanced_threat_protection = true
-
-  # (Required) Project_Name, Subscription_type and environment are must to create resource names.
-  project_name      = "tieto-internal"
-  subscription_type = "shared"
-  environment       = "dev"
 
   # Container lists with access_type to create
   containers_list = [
@@ -64,7 +55,7 @@ module "storage" {
   # Adding TAG's to your Azure resources (Required)
   # ProjectName and Env are already declared above, to use them here, create a varible.
   tags = {
-    ProjectName  = "tieto-internal"
+    ProjectName  = "demo-internal"
     Env          = "dev"
     Owner        = "user@example.com"
     BusinessUnit = "CORP"
@@ -128,8 +119,10 @@ module "storage" {
   # If specifying network_rules, one of either `ip_rules` or `subnet_ids` must be specified
   network_rules = {
     bypass     = ["AzureServices"]
-    ip_rules   = ["123.201.18.148"] # One or more IP Addresses, or CIDR Blocks to access this Key Vault.
-    subnet_ids = [] # One or more Subnet ID's to access this Key Vault.
+    # One or more IP Addresses, or CIDR Blocks to access this Key Vault.
+    ip_rules   = ["123.201.18.148"]
+    # One or more Subnet ID's to access this Key Vault.
+    subnet_ids = []
   }
 
   # .... omitted
@@ -178,6 +171,67 @@ module "storage" {
   }
   ```
 
+## Recommended naming and tagging conventions
+
+Well-defined naming and metadata tagging conventions help to quickly locate and manage resources. These conventions also help associate cloud usage costs with business teams via chargeback and show back accounting mechanisms.
+
+> ### Resource naming
+
+An effective naming convention assembles resource names by using important resource information as parts of a resource's name. For example, using these [recommended naming conventions](https://docs.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/naming-and-tagging#example-names), a public IP resource for a production SharePoint workload is named like this: `pip-sharepoint-prod-westus-001`.
+
+> ### Metadata tags
+
+When applying metadata tags to the cloud resources, you can include information about those assets that couldn't be included in the resource name. You can use that information to perform more sophisticated filtering and reporting on resources. This information can be used by IT or business teams to find resources or generate reports about resource usage and billing.
+
+The following list provides the recommended common tags that capture important context and information about resources. Use this list as a starting point to establish your tagging conventions.
+
+Tag Name|Description|Key|Example Value|Required?
+--------|-----------|---|-------------|---------|
+Project Name|Name of the Project for the infra is created. This is mandatory to create a resource names.|ProjectName|{Project name}|Yes
+Application Name|Name of the application, service, or workload the resource is associated with.|ApplicationName|{app name}|Yes
+Approver|Name Person responsible for approving costs related to this resource.|Approver|{email}|Yes
+Business Unit|Top-level division of your company that owns the subscription or workload the resource belongs to. In smaller organizations, this may represent a single corporate or shared top-level organizational element.|BusinessUnit|FINANCE, MARKETING,{Product Name},CORP,SHARED|Yes
+Cost Center|Accounting cost center associated with this resource.|CostCenter|{number}|Yes
+Disaster Recovery|Business criticality of this application, workload, or service.|DR|Mission Critical, Critical, Essential|Yes
+Environment|Deployment environment of this application, workload, or service.|Env|Prod, Dev, QA, Stage, Test|Yes
+Owner Name|Owner of the application, workload, or service.|Owner|{email}|Yes
+Requester Name|User that requested the creation of this application.|Requestor| {email}|Yes
+Service Class|Service Level Agreement level of this application, workload, or service.|ServiceClass|Dev, Bronze, Silver, Gold|Yes
+Start Date of the project|Date when this application, workload, or service was first deployed.|StartDate|{date}|No
+End Date of the Project|Date when this application, workload, or service is planned to be retired.|EndDate|{date}|No
+
+> This module allows you to manage the above metadata tags directly or as a variable using `variables.tf`. All Azure resources which support tagging can be tagged by specifying key-values in argument `tags`. Tag `ResourceName` is added automatically to all resources.
+
+```hcl
+module "key-vault" {
+  source = "github.com/tietoevry-infra-as-code/terraform-azurerm-storage?ref=v2.0.0"
+
+  # ... omitted
+
+  tags = {
+    ProjectName  = "demo-project"
+    Env          = "dev"
+    Owner        = "user@example.com"
+    BusinessUnit = "CORP"
+    ServiceClass = "Gold"
+  }
+}  
+```
+
+## Requirements
+
+| Name | Version |
+|------|---------|
+| terraform | >= 0.13 |
+| azurerm | ~> 2.27 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| azurerm | ~> 2.27 |
+| random | n/a |
+
 ## Inputs
 
 Name | Description | Type | Default
@@ -185,9 +239,6 @@ Name | Description | Type | Default
 `create_resource_group`|Whether to create resource group and use it for all networking resources|string| `false`
 `resource_group_name`|The name of the resource group in which resources are created|string|`""`
 `location`|The location of the resource group in which resources are created|string| `""`
-`project_name`|The name of the project|string|`""`
-`subscription_type`|Summary description of the purpose of the subscription that contains the resource. Often broken down by deployment environment type or specific workloads. For example, Training, FINANCE, MARKETING, CORP, SHARED|string |`""`
-`environment`|The stage of the development lifecycle for the workload that the resource supports|list |`{}`
 `account_kind`|General-purpose v2 accounts: Basic storage account type for blobs, files, queues, and tables.|string|`"StorageV2"`
 `skuname`|The SKUs supported by Microsoft Azure Storage. Valid options are Premium_LRS, Premium_ZRS, Standard_GRS, Standard_GZRS, Standard_LRS, Standard_RAGRS, Standard_RAGZRS, Standard_ZRS|string|`Standard_RAGRS`
 `access_tier`|Defines the access tier for BlobStorage and StorageV2 accounts. Valid options are Hot and Cool.|string|`"Hot"`
@@ -260,7 +311,7 @@ Name | Description
 
 ## Authors
 
-Module is maintained by [Kumaraswamy Vithanala](mailto:kumaraswamy.vithanala@tieto.com) with the help from other awesome contributors.
+Originally created by [Kumaraswamy Vithanala](mailto:kumarvna@gmail.com)
 
 ## Other resources
 

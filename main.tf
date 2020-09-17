@@ -34,14 +34,15 @@ resource "random_string" "unique" {
 }
 
 resource "azurerm_storage_account" "storeacc" {
-  name                      = format("sta%s%s", lower(replace(var.project_name, "/[[:^alnum:]]/", "")), random_string.unique.result)
+  name                      = format("sta%s%s", lower(replace(var.storage_account_name, "/[[:^alnum:]]/", "")), random_string.unique.result)
   resource_group_name       = local.resource_group_name
   location                  = local.location
   account_kind              = var.account_kind
   account_tier              = local.account_tier
   account_replication_type  = local.account_replication_type
   enable_https_traffic_only = true
-  tags                      = merge({ "ResourceName" = format("sta%s%s", lower(replace(var.project_name, "/[[:^alnum:]]/", "")), random_string.unique.result) }, var.tags, )
+  allow_blob_public_access  = var.enable_advanced_threat_protection == true ? true : false
+  tags                      = merge({ "ResourceName" = format("sta%s%s", lower(replace(var.storage_account_name, "/[[:^alnum:]]/", "")), random_string.unique.result) }, var.tags, )
 
   identity {
     type = var.assign_identity ? "SystemAssigned" : null
