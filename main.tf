@@ -25,7 +25,7 @@ resource "azurerm_resource_group" "rg" {
 }
 
 #---------------------------------------------------------
-# Storage Account Creation or selection 
+# Storage Account Creation or selection
 #----------------------------------------------------------
 resource "random_string" "unique" {
   length  = 6
@@ -66,9 +66,10 @@ resource "azurerm_storage_account" "storeacc" {
 }
 
 #--------------------------------------
-# Storage Advanced Threat Protection 
+# Storage Advanced Threat Protection
 #--------------------------------------
 resource "azurerm_advanced_threat_protection" "atp" {
+  count = var.enable_advanced_threat_protection ? 1 : 0
   target_resource_id = azurerm_storage_account.storeacc.id
   enabled            = var.enable_advanced_threat_protection
 }
